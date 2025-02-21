@@ -24,7 +24,7 @@ module.exports.createCategoryController = asyncHandler(async (req, res) => {
  * @description Get all Categories
  * @route /api/categories/
  * @method GET
- * @access private (only admin)
+ * @access public
  */
 module.exports.getAllCategoriesController = asyncHandler(async (req, res) => {
   const categories = await Category.find();

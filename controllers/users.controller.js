@@ -94,7 +94,7 @@ module.exports.updateUserProfileController = asyncHandler(async (req, res) => {
 module.exports.getUsersCountController = asyncHandler(async (req, res) => {
   const count = await User.countDocuments();
 
-  res.status(200).json(count);
+  res.status(200).json({ status: "success", count});
 });
 
 /**
@@ -181,5 +181,5 @@ module.exports.deleteUserProfileController = asyncHandler(async (req, res) => {
   await User.findByIdAndDelete(req.params.id);
 
   //* 8. Send response to the client
-  return res.status(200).json({ message: "Account deleted successfully" });
+  return res.status(200).json({ status: "success", message: "Account deleted successfully" });
 });

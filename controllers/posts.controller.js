@@ -115,7 +115,7 @@ module.exports.getSinglePostController = asyncHandler(async (req, res) => {
 module.exports.getPostsCountController = asyncHandler(async (req, res) => {
   const count = await Post.countDocuments();
 
-  res.status(200).json(count);
+  res.status(200).json({ status: "success", count });
 });
 
 /**
@@ -261,7 +261,7 @@ module.exports.updatePostImageController = asyncHandler(async (req, res) => {
  * @description Toggle Like
  * @route /api/posts/like/:id
  * @method PUT
- * @access private (only logged in use)
+ * @access private (only logged in user)
  */
 
 module.exports.toggleLikeController = asyncHandler(async (req, res) => {
