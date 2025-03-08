@@ -5,6 +5,7 @@ const {
   User,
   validateLoginUser,
 } = require("../models/User");
+const sendEmail = require("./../utils/email.js");
 
 /**
  * @description Register New User
@@ -76,7 +77,6 @@ module.exports.loginUserController = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "invalid email or password" });
   }
 
-
   //TODO: - sending email (verify account if not verified)
 
   //& 4. generate token (jwt)
@@ -91,3 +91,53 @@ module.exports.loginUserController = asyncHandler(async (req, res) => {
     token,
   });
 });
+
+/**
+ * @description forgot password
+ * @route /api/auth/forgot-password
+ * @method POST
+ * @access private only logged in users
+ */
+
+module.exports.forgotPasswordController = asyncHandler(
+  async (req, res, next) => {
+    //* 1. Get user based on posted email
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      const error = new Error("we could not find the user with this email");
+      next(error);
+    }
+
+    //* 2. Generate a random reset token
+
+    const resetToken = user.generateResetPasswordToken();
+
+    await user.save({ validateBeforeSave: false });
+
+    //* 3. Send The Token back to the user email
+    const resetUrl = `${req.protocol}://${req.get(
+      "host"
+    )}/api/auth/reset-password/${resetToken}`;
+    const message = `we have recieved a password reset request. Please use the below link to reset your password\n\n${resetUrl}\n\nThis reset password link will be valid only for 10 minutes.`;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: `Password change request recieved`,
+        message,
+      });
+      res.status(200).json({
+        status: "success",
+        message: "password reset link sent to the user's email",
+      });
+    } catch (error) {
+        console.log(error);
+        user.passwordResetToken = undefined;
+        user.passwordResetTokenExpires = undefined;
+        user.save({ validateBeforeSave: false });
+      
+        return next(new Error("There was an error sending password reset email. Please try again later."));
+    }
+  }
+);
+module.exports.resetPasswordController = asyncHandler((req, res, next) => {});

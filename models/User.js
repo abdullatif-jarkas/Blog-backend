@@ -1,6 +1,7 @@
 const Joi = require("joi");
 const { default: mongoose } = require("mongoose");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const UserSchema = new mongoose.Schema(
   {
@@ -43,6 +44,12 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    passwordResetToken: {
+      type: String,
+    },
+    passwordResetTokenExpires: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
@@ -69,8 +76,22 @@ UserSchema.methods.generateAuthToken = function () {
   );
 };
 
+UserSchema.methods.generateResetPasswordToken = function () {
+  const resetToken = crypto.randomBytes(3).toString("hex");
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  this.passwordResetTokenExpires = Date.now() + 10 * 60 * 1000;
+
+  console.log(resetToken, this.passwordResetToken)
+
+  return resetToken;
+};
+
 //* User Model
 const User = mongoose.model("User", UserSchema);
+
 
 ////^ VALIDATIONS ^////
 
