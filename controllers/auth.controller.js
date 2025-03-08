@@ -6,6 +6,7 @@ const {
   validateLoginUser,
 } = require("../models/User");
 const sendEmail = require("./../utils/email.js");
+const crypto = require("crypto");
 
 /**
  * @description Register New User
@@ -96,7 +97,7 @@ module.exports.loginUserController = asyncHandler(async (req, res) => {
  * @description forgot password
  * @route /api/auth/forgot-password
  * @method POST
- * @access private only logged in users
+ * @access public
  */
 
 module.exports.forgotPasswordController = asyncHandler(
@@ -131,13 +132,63 @@ module.exports.forgotPasswordController = asyncHandler(
         message: "password reset link sent to the user's email",
       });
     } catch (error) {
-        console.log(error);
-        user.passwordResetToken = undefined;
-        user.passwordResetTokenExpires = undefined;
-        user.save({ validateBeforeSave: false });
-      
-        return next(new Error("There was an error sending password reset email. Please try again later."));
+      console.log(error);
+      user.passwordResetToken = undefined;
+      user.passwordResetTokenExpires = undefined;
+      user.save({ validateBeforeSave: false });
+
+      return next(
+        new Error(
+          "There was an error sending password reset email. Please try again later."
+        )
+      );
     }
   }
 );
-module.exports.resetPasswordController = asyncHandler((req, res, next) => {});
+
+/**
+ * @description reset password
+ * @route /api/auth/reset-password:token
+ * @method PUT
+ * @access public
+ */
+module.exports.resetPasswordController = asyncHandler(
+  async (req, res, next) => {
+    const token = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetTokenExpires: {
+        $gt: Date.now(),
+      },
+    });
+    if (!user) {
+      const error = new Error(`Token is invalid or has expired!`);
+      next(error);
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(req.body.password, salt);
+
+    user.confirmPassword = req.body.confirmPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetTokenExpires = undefined;
+    user.passwordChangedAt = Date.now();
+
+    await user.save();
+
+    //* Login the user
+
+    const loginToken = user.generateAuthToken();
+
+    res.status(200).json({
+      message: "logged in successfully",
+      _id: user._id,
+      isAdmin: user.isAdmin,
+      profilePhoto: user.profilePhoto,
+      token: loginToken,
+    });
+  }
+);
