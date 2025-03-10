@@ -87,7 +87,7 @@ UserSchema.methods.generateResetPasswordToken = function () {
     .digest("hex");
   this.passwordResetTokenExpires = Date.now() + 10 * 60 * 1000;
 
-  console.log(resetToken, this.passwordResetToken)
+  console.log(resetToken, this.passwordResetToken);
 
   return resetToken;
 };
@@ -95,16 +95,21 @@ UserSchema.methods.generateResetPasswordToken = function () {
 //* User Model
 const User = mongoose.model("User", UserSchema);
 
-
 ////^ VALIDATIONS ^////
 
-//* Validate Register User
+//* Validate Register User with Confirm Password
 function validateRegisterUser(obj) {
   const schema = Joi.object({
     username: Joi.string().trim().min(2).max(100).required(),
     email: Joi.string().trim().min(5).max(100).required().email(),
     password: Joi.string().trim().min(8).required(),
+    confirmPassword: Joi.string()
+      .trim()
+      .valid(Joi.ref("password"))
+      .required()
+      .messages({ "any.only": "Confirm Password must match Password" }),
   });
+
   return schema.validate(obj);
 }
 //* Validate Login User
