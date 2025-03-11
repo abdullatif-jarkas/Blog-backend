@@ -219,3 +219,61 @@ module.exports.resetPasswordController = asyncHandler(
     });
   }
 );
+
+/**
+ * @description update password
+ * @route /api/auth/update-password
+ * @method PUT
+ * @access private (only logged in user)
+ */
+module.exports.updatePasswordController = asyncHandler(
+  async (req, res, next) => {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        status: "error",
+        message: "All fields are required",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        status: "error",
+        message: "New password and confirmation password do not match",
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "User not found",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        status: "error",
+        message: "Incorrect old password",
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        user: {
+          id: user._id,
+          message: "Password updated successfully",
+        },
+      },
+    });
+  }
+);
