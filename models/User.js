@@ -2,7 +2,6 @@ const Joi = require("joi");
 const { default: mongoose } = require("mongoose");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const bcrypt = require("bcryptjs")
 
 const UserSchema = new mongoose.Schema(
   {
