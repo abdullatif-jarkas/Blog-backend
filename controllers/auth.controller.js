@@ -5,8 +5,8 @@ const {
   User,
   validateLoginUser,
 } = require("../models/User");
-const sendEmail = require("./../utils/email.js");
 const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 /**
  * @description Register New User
@@ -115,34 +115,58 @@ module.exports.forgotPasswordController = asyncHandler(
 
     await user.save({ validateBeforeSave: false });
 
-    //* 3. Send The Token back to the user email
-    const resetUrl = `${req.protocol}://${req.get(
-      "host"
-    )}/api/auth/reset-password/${resetToken}`;
-    const message = `we have recieved a password reset request. Please use the below link to reset your password\n\n${resetUrl}\n\nThis reset password link will be valid only for 10 minutes.`;
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
 
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: `Password change request recieved`,
-        message,
-      });
-      res.status(200).json({
-        status: "success",
-        message: "password reset link sent to the user's email",
-      });
-    } catch (error) {
-      console.log(error);
-      user.passwordResetToken = undefined;
-      user.passwordResetTokenExpires = undefined;
-      user.save({ validateBeforeSave: false });
+    // Define Email Options
+    const emailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "🔐 Reset Your Password",
+      html: `
+      <div style="background-color: #f4f4f4; padding: 40px; font-family: Arial, sans-serif; text-align: center;">
+        <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 500px; margin: auto;">
+          <h2 style="color: #333;">🔑 Password Reset Request</h2>
+          <p style="color: #555; font-size: 16px;">We received a request to reset your password. Use the code below to proceed:</p>
+    
+          <div style="background-color: #007bff; color: white; padding: 15px; border-radius: 5px; display: inline-block; font-size: 22px; font-weight: bold; letter-spacing: 2px; margin: 15px 0;">
+            ${resetToken}
+          </div>
+    
+          <p style="color: #777; font-size: 14px;">This code is valid for <strong>10 minutes</strong>. If you did not request this, please ignore this email.</p>
+    
+          <hr style="border: 0; height: 1px; background: #ddd; margin: 20px 0;">
+    
+          <p style="color: #444; font-size: 14px;"><strong>How to use this code:</strong></p>
+          <p style="color: #555; font-size: 14px; line-height: 1.6;">
+            1️⃣ Copy the code above.<br>
+            2️⃣ Go to the password reset page.<br>
+            3️⃣ Paste the code and set your new password.
+          </p>
+    
+          <p style="color: #888; font-size: 13px; margin-top: 20px;">If you need help, contact our support team.</p>
+        </div>
+      </div>
+      `,
+    };
 
-      return next(
-        new Error(
-          "There was an error sending password reset email. Please try again later."
-        )
-      );
-    }
+    await transporter.sendMail(emailOptions, (error, success) => {
+      if (error) {
+        console.log(error);
+      } else {
+        console.log("Email sent: " + success.response);
+      }
+    });
+
+    res.json({
+      status: "success",
+      message: "Email sent successfully",
+    });
   }
 );
 
@@ -167,6 +191,9 @@ module.exports.resetPasswordController = asyncHandler(
     if (!user) {
       const error = new Error(`Token is invalid or has expired!`);
       next(error);
+    }
+    if (req.body.password !== req.body.confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match!" });
     }
 
     const salt = await bcrypt.genSalt(10);
