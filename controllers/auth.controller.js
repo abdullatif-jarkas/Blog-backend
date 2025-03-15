@@ -86,6 +86,7 @@ module.exports.loginUserController = asyncHandler(async (req, res) => {
   //* send Response to the client
   res.status(200).json({
     message: "logged in successfully",
+    username: user.username,
     _id: user._id,
     isAdmin: user.isAdmin,
     profilePhoto: user.profilePhoto,
